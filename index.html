@@ -1,16 +1,18 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lab 2 AR</title>
-  </head>
-  <body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 2 AR - Variant 6</title>
+</head>
+<body>
+    <div id="ui-menu" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; gap: 10px;">
+        <button id="btn-task1" style="padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid white;">Завдання 1</button>
+        <button id="btn-task2" style="padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid white;">Завдання 2</button>
+        <button id="btn-task3" style="padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid white;">Завдання 3</button>
+        <button id="btn-task4" style="padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid white;">Завдання 4</button>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
-    <div style="position: absolute; top: 10px; left: 10px; z-index: 999;">
-  <button onclick="loadTask(1)">Завдання 1</button>
-  <button onclick="loadTask(2)">Завдання 2</button>
-</div>
-  </body>
+</body>
 </html>
