@@ -1,74 +1,77 @@
-import './style.css'; 
-import * as THREE from 'three'; 
-import { ARButton } from 'three/examples/jsm/webxr/ARButton.js'; 
+import './style.css';
+import * as THREE from 'three';
+import { ARButton } from 'three/examples/jsm/webxr/ARButton.js';
+// Імпортуємо завантажувач для моделей [cite: 456]
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 let camera, scene, renderer;
-let mesh1, mesh2, mesh3; // Наші фігури за 6 варіантом
+let jewelryModel; // Змінна для твоєї моделі
 
 init();
 animate();
 
 function init() {
-  // 1. Сцена - контейнер для об'єктів [cite: 150, 167]
-  scene = new THREE.Scene(); 
-
-  // 2. Камера - точка огляду користувача [cite: 164, 167]
+  // 1. Сцена та Камера [cite: 167]
+  scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-  // 3. Світло - необхідне для відображення матеріалів [cite: 173, 179]
+  // 2. Освітлення - важливо для металевого блиску ювелірки [cite: 179]
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   scene.add(light);
 
-  // 4. Рендерер з підтримкою WebXR [cite: 149, 190]
+  // 3. Рендерер та активація WebXR [cite: 190]
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true; // Активуємо WebXR сесію [cite: 59, 190]
+  renderer.xr.enabled = true; 
   document.body.appendChild(renderer.domElement);
 
-  // Додаємо кнопку "Start AR" [cite: 197, 378]
+  // Додаємо кнопку "Start AR" [cite: 197, 374]
   document.body.appendChild(ARButton.createButton(renderer));
 
-  // --- ОБ'ЄКТИ ЗА 6 ВАРІАНТОМ  ---
+  // 4. Завантаження моделі (Завдання №2) [cite: 419]
+  const loader = new GLTFLoader();
+  
+  // ЗАМІНИ ЦЕ ПОСИЛАННЯ НА СВОЄ (з GitHub Pages)
+  const modelUrl = 'public/trisector_chain__posthuman.lab.glb'; 
 
-  // 1. Dodecahedron (Додекаедр) - Золотистий матовий матеріал [cite: 181, 183]
-  const geo1 = new THREE.DodecahedronGeometry(0.08); 
-  const mat1 = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.5 });
-  mesh1 = new THREE.Mesh(geo1, mat1);
-  mesh1.position.set(-0.2, 0, -0.5); // 0.5 метра від камери [cite: 381]
-  scene.add(mesh1);
+  loader.load(
+    modelUrl,
+    (gltf) => {
+      jewelryModel = gltf.scene;
+      
+      // Початкове розміщення перед камерою [cite: 381]
+      jewelryModel.position.set(0, 0, -0.5); 
+      
+      // Масштабування - ювелірні вироби зазвичай маленькі
+      jewelryModel.scale.set(0.1, 0.1, 0.1); 
 
-  // 2. Ring (Кільце) - Сріблястий блискучий матеріал
-  const geo2 = new THREE.RingGeometry(0.04, 0.08, 32);
-  const mat2 = new THREE.MeshPhongMaterial({ color: 0xc0c0c0, shininess: 100, side: THREE.DoubleSide });
-  mesh2 = new THREE.Mesh(geo2, mat2);
-  mesh2.position.set(0, 0, -0.5); 
-  scene.add(mesh2);
+      // Налаштування матеріалів для кожної частини моделі [cite: 442]
+      jewelryModel.traverse((child) => {
+        if (child.isMesh) {
+          // Робимо матеріал схожим на золото/срібло [cite: 183]
+          child.material.metalness = 1;
+          child.material.roughness = 0.2;
+        }
+      });
 
-  // 3. Tetrahedron (Тетраедр) - Синій напівпрозорий матеріал
-  const geo3 = new THREE.TetrahedronGeometry(0.08);
-  const mat3 = new THREE.MeshLambertMaterial({ color: 0x0000ff, transparent: true, opacity: 0.7 });
-  mesh3 = new THREE.Mesh(geo3, mat3);
-  mesh3.position.set(0.2, 0, -0.5);
-  scene.add(mesh3);
+      scene.add(jewelryModel); // Додаємо на сцену [cite: 150]
+    },
+    (xhr) => { console.log((xhr.loaded / xhr.total * 100) + '% завантажено'); },
+    (error) => { console.error('Помилка завантаження моделі:', error); }
+  );
 }
 
 function animate() {
-  // Цикл рендерингу WebXR [cite: 200, 214]
+  // Використовуємо спеціальний цикл рендерера для WebXR [cite: 200]
   renderer.setAnimationLoop(render);
 }
 
 function render(time) {
-  const speed = time * 0.001;
+  // Реалізація анімації моделі в реальному часі [cite: 415]
+  if (jewelryModel) {
+    jewelryModel.rotation.y = time * 0.001; // Повільне обертання [cite: 444]
+  }
   
-  // Анімація обертання для кожного об'єкта [cite: 206, 380]
-  mesh1.rotation.x = speed;
-  mesh1.rotation.y = speed;
-
-  mesh2.rotation.z = speed; // Кільце крутиться як диск
-
-  mesh3.rotation.y = speed;
-  mesh3.rotation.z = speed * 0.5;
-
-  renderer.render(scene, camera); // Малюємо кадр [cite: 220, 222]
+  renderer.render(scene, camera); // [cite: 223]
 }
