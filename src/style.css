@@ -1,0 +1,23 @@
+body {
+  margin: 0;
+  background-color: #000;
+  color: #fff;
+  font-family: Monospace;
+  font-size: 16px;
+  line-height: 24px;
+  overscroll-behavior: none; /* Запобігає оновленню сторінки при свайпах в AR */
+}
+
+canvas {
+  display: block; /* Прибирає білі відступи навколо 3D-полотна */
+}
+
+/* Налаштування для кнопок та інтерфейсу поверх AR */
+a, button, input, select {
+  pointer-events: auto;
+}
+
+button {
+  cursor: pointer;
+  text-transform: uppercase;
+}
