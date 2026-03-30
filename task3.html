@@ -20,7 +20,10 @@
       letter-spacing: 0.1em; text-transform: uppercase;
       border: 1px solid #d4a843; padding: 0.35rem 0.7rem;
     }
-    #label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+    #label {
+      font-size: 0.7rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: rgba(255,255,255,0.5);
+    }
 
     #hint {
       position: fixed; bottom: 8rem; left: 50%; transform: translateX(-50%);
@@ -38,19 +41,12 @@
     #counter {
       font-size: 0.7rem; color: #d4a843; letter-spacing: 0.1em; text-transform: uppercase;
     }
-
-    #ARButton {
-      background: #d4a843 !important; color: #000 !important; border: none !important;
-      padding: 0.7rem 2rem !important; font-family: monospace !important;
-      font-size: 0.75rem !important; letter-spacing: 0.15em !important;
-      text-transform: uppercase !important; cursor: pointer !important;
-    }
   </style>
 </head>
 <body>
 
 <div id="ui">
-  <a href="index.html" id="back">← Назад</div>
+  <a href="index.html" id="back">← Назад</a>
   <span id="label">Завдання 03 · Hit Test</span>
 </div>
 
@@ -79,6 +75,7 @@ let hitTestSource = null;
 let hitTestSourceRequested = false;
 let controller;
 let placedCount = 0;
+
 const counterEl = document.getElementById('counter');
 
 init();
@@ -89,43 +86,37 @@ function init() {
 
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-  // Освітлення
   const hemi = new THREE.HemisphereLight(0xffffff, 0x444455, 2);
   scene.add(hemi);
-
   const dirLight = new THREE.DirectionalLight(0xfff0cc, 3);
   dirLight.position.set(2, 4, 2);
   scene.add(dirLight);
 
-  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
 
-  // AR Button — ВАЖЛИВО: потрібен hit-test feature
+  // Такі самі налаштування як у task4 який працює
   const arBtn = ARButton.createButton(renderer, {
     requiredFeatures: ['hit-test'],
     optionalFeatures: ['dom-overlay'],
     domOverlay: { root: document.body }
   });
-  arBtn.id = 'ARButton';
   document.getElementById('bottom-ui').prepend(arBtn);
 
-  // Reticle — індикатор поверхні (кільце)
+  // Reticle — кільце-індикатор поверхні
   const reticleGeo = new THREE.RingGeometry(0.04, 0.055, 32);
-  reticleGeo.rotateX(-Math.PI / 2); // Кладемо горизонтально
-  const reticleMat = new THREE.MeshBasicMaterial({
+  reticleGeo.rotateX(-Math.PI / 2);
+  reticle = new THREE.Mesh(reticleGeo, new THREE.MeshBasicMaterial({
     color: 0xd4a843,
     side: THREE.DoubleSide,
-  });
-  reticle = new THREE.Mesh(reticleGeo, reticleMat);
+  }));
   reticle.matrixAutoUpdate = false;
   reticle.visible = false;
   scene.add(reticle);
 
-  // Контролер — обробка торкання
   controller = renderer.xr.getController(0);
   controller.addEventListener('select', onSelect);
   scene.add(controller);
@@ -134,30 +125,24 @@ function init() {
 }
 
 function onSelect() {
-  // Розміщуємо IcosahedronGeometry де знаходиться reticle
-  if (reticle.visible) {
-    const geo = new THREE.IcosahedronGeometry(0.06, 0);
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(placedCount * 0.15, 0.8, 0.5),
-      metalness: 0.3,
-      roughness: 0.4,
-      emissive: new THREE.Color().setHSL(placedCount * 0.15, 0.6, 0.1),
-    });
-    const mesh = new THREE.Mesh(geo, mat);
+  if (!reticle.visible) return;
 
-    // Позиція і орієнтація з reticle
-    mesh.position.setFromMatrixPosition(reticle.matrix);
-    mesh.quaternion.setFromRotationMatrix(reticle.matrix);
+  const geo = new THREE.IcosahedronGeometry(0.06, 0);
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color().setHSL((placedCount * 0.15) % 1, 0.8, 0.5),
+    metalness: 0.3,
+    roughness: 0.4,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
 
-    // Невелика випадкова анімація — зберігаємо початковий кут
-    mesh.userData.rotationSpeed = (Math.random() - 0.5) * 0.04;
-    mesh.userData.hoverOffset = Math.random() * Math.PI * 2;
+  mesh.position.setFromMatrixPosition(reticle.matrix);
+  mesh.quaternion.setFromRotationMatrix(reticle.matrix);
+  mesh.userData.rotSpeed = (Math.random() - 0.5) * 0.04;
+  mesh.userData.phase = Math.random() * Math.PI * 2;
 
-    scene.add(mesh);
-
-    placedCount++;
-    counterEl.textContent = `Розміщено об'єктів: ${placedCount}`;
-  }
+  scene.add(mesh);
+  placedCount++;
+  counterEl.textContent = 'Розміщено об\'єктів: ' + placedCount;
 }
 
 function animate() {
@@ -166,30 +151,23 @@ function animate() {
       const referenceSpace = renderer.xr.getReferenceSpace();
       const session = renderer.xr.getSession();
 
-      // Запит Hit Test Source (один раз)
       if (!hitTestSourceRequested) {
         session.requestReferenceSpace('viewer').then((viewerSpace) => {
           session.requestHitTestSource({ space: viewerSpace }).then((source) => {
             hitTestSource = source;
           });
         });
-
         session.addEventListener('end', () => {
           hitTestSourceRequested = false;
           hitTestSource = null;
         });
-
         hitTestSourceRequested = true;
       }
 
-      // Оновлення reticle
       if (hitTestSource) {
-        const hitTestResults = frame.getHitTestResults(hitTestSource);
-
-        if (hitTestResults.length > 0) {
-          const hit = hitTestResults[0];
-          const pose = hit.getPose(referenceSpace);
-
+        const results = frame.getHitTestResults(hitTestSource);
+        if (results.length > 0) {
+          const pose = results[0].getPose(referenceSpace);
           reticle.visible = true;
           reticle.matrix.fromArray(pose.transform.matrix);
         } else {
@@ -198,12 +176,12 @@ function animate() {
       }
     }
 
-    // Анімуємо розміщені об'єкти
+    // Анімація розміщених об'єктів
     const t = performance.now() * 0.001;
     scene.children.forEach((obj) => {
-      if (obj.userData.rotationSpeed !== undefined) {
-        obj.rotation.y += obj.userData.rotationSpeed;
-        obj.position.y += Math.sin(t * 2 + obj.userData.hoverOffset) * 0.0002;
+      if (obj.userData.rotSpeed !== undefined) {
+        obj.rotation.y += obj.userData.rotSpeed;
+        obj.position.y += Math.sin(t * 2 + obj.userData.phase) * 0.0002;
       }
     });
 
