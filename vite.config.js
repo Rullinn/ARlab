@@ -1,10 +1,24 @@
+// vite.config.js
+import basicSsl from '@vitejs/plugin-basic-ssl'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  plugins: [basicSsl()],
   server: {
-    host: true, // Дозволяє доступ по локальній мережі [cite: 306]
+    host: true,
     allowedHosts: [
-      'nonaccredited-warner-nonecliptic.ngrok-free.dev' // Твоя адреса з ngrok
+      'nonaccredited-warner-nonecliptic.ngrok-free.dev'
     ]
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main:  'index.html',
+        task1: 'task1.html',
+        task2: 'task2.html',
+        task3: 'task3.html',
+        task4: 'task4.html',
+      }
+    }
   }
 })

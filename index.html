@@ -1,18 +1,245 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab 2 AR - Variant 6</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 2 AR — Варіант 6</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #d4a843;
+      --gold-dim: #8a6b20;
+      --bg: #080808;
+      --surface: #111111;
+      --border: #222;
+      --text: #eee;
+      --muted: #666;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      overflow: hidden;
+    }
+
+    /* Animated background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(212,168,67,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(212,168,67,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 680px;
+      width: 100%;
+    }
+
+    .header {
+      margin-bottom: 3rem;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      border: 1px solid var(--gold-dim);
+      padding: 0.3rem 0.8rem;
+      margin-bottom: 1.2rem;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 span { color: var(--gold); }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    .tasks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 480px) {
+      .tasks { grid-template-columns: 1fr; }
+    }
+
+    .task-card {
+      display: block;
+      text-decoration: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      transition: border-color 0.2s, transform 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .task-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(212,168,67,0.06) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .task-card:hover {
+      border-color: var(--gold-dim);
+      transform: translateY(-2px);
+    }
+
+    .task-card:hover::after { opacity: 1; }
+
+    .task-num {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.8rem;
+    }
+
+    .task-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .task-desc {
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .task-geo {
+      margin-top: 0.8rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+
+    .geo-tag {
+      font-size: 0.58rem;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.5rem;
+      background: rgba(212,168,67,0.08);
+      border: 1px solid rgba(212,168,67,0.2);
+      color: var(--gold);
+    }
+
+    .arrow {
+      position: absolute;
+      bottom: 1.2rem;
+      right: 1.2rem;
+      color: var(--gold-dim);
+      font-size: 1rem;
+      transition: transform 0.2s, color 0.2s;
+    }
+
+    .task-card:hover .arrow {
+      transform: translate(3px, -3px);
+      color: var(--gold);
+    }
+
+    .footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+  </style>
 </head>
 <body>
-   <div id="ui-container" style="position: fixed; top: 10px; width: 100%; display: flex; justify-content: center; gap: 5px; z-index: 10;">
-  <button id="task1">Завд 1</button>
-  <button id="task2">Завд 2</button>
-  <button id="task3">Завд 3</button>
-  <button id="task4">Завд 4</button>
-</div>
-<div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+  <div class="container">
+    <div class="header">
+      <div class="badge">Лабораторна робота №2 · Варіант 6</div>
+      <h1>WebXR <span>&</span> Three.js<br>AR Experience</h1>
+      <p class="subtitle">Системи віртуальної та доповненої реальності · Львівська Політехніка</p>
+    </div>
+
+    <div class="tasks">
+      <a href="task1.html" class="task-card">
+        <div class="task-num">Завдання 01</div>
+        <div class="task-title">3D Примітиви</div>
+        <div class="task-desc">Три геометричні об'єкти з різними матеріалами та базовою анімацією у AR-режимі.</div>
+        <div class="task-geo">
+          <span class="geo-tag">Dodecahedron</span>
+          <span class="geo-tag">Ring</span>
+          <span class="geo-tag">Tetrahedron</span>
+        </div>
+        <div class="arrow">↗</div>
+      </a>
+
+      <a href="task2.html" class="task-card">
+        <div class="task-num">Завдання 02</div>
+        <div class="task-title">GLTF Модель</div>
+        <div class="task-desc">Завантаження та відображення 3D-моделі ювелірного виробу з анімацією.</div>
+        <div class="task-geo">
+          <span class="geo-tag">GLTFLoader</span>
+          <span class="geo-tag">Ювелірні вироби</span>
+        </div>
+        <div class="arrow">↗</div>
+      </a>
+
+      <a href="task3.html" class="task-card">
+        <div class="task-num">Завдання 03</div>
+        <div class="task-title">Hit Test + Примітив</div>
+        <div class="task-desc">Розміщення 3D-об'єкта у реальному просторі за допомогою WebXR Hit Test.</div>
+        <div class="task-geo">
+          <span class="geo-tag">Hit Test</span>
+          <span class="geo-tag">Icosahedron</span>
+          <span class="geo-tag">Reticle</span>
+        </div>
+        <div class="arrow">↗</div>
+      </a>
+
+      <a href="task4.html" class="task-card">
+        <div class="task-num">Завдання 04</div>
+        <div class="task-title">Hit Test + Динозавр</div>
+        <div class="task-desc">Розміщення GLTF-моделі динозавра у реальному просторі через Hit Test.</div>
+        <div class="task-geo">
+          <span class="geo-tag">Hit Test</span>
+          <span class="geo-tag">GLTF</span>
+          <span class="geo-tag">Динозаври</span>
+        </div>
+        <div class="arrow">↗</div>
+      </a>
+    </div>
+
+    <div class="footer">Для AR-тестування відкрийте на Android Chrome або через ngrok у XRViewer (iOS)</div>
+  </div>
 </body>
 </html>

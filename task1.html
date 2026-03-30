@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Завдання 1 — Примітиви AR</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: monospace;
+      font-size: 14px;
+      overflow: hidden;
+    }
+    canvas { display: block; }
+
+    #ui {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.2rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    }
+
+    #back {
+      color: #d4a843;
+      text-decoration: none;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: 1px solid #d4a843;
+      padding: 0.35rem 0.7rem;
+      transition: background 0.2s;
+    }
+    #back:hover { background: rgba(212,168,67,0.15); }
+
+    #label {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+
+    #bottom-ui {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    /* ARButton стилізація вбудована через JS override */
+    #info {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 0.05em;
+      text-align: center;
+    }
+
+    /* Перевизначення ARButton */
+    #ARButton {
+      background: #d4a843 !important;
+      color: #000 !important;
+      border: none !important;
+      padding: 0.7rem 2rem !important;
+      font-family: monospace !important;
+      font-size: 0.75rem !important;
+      letter-spacing: 0.15em !important;
+      text-transform: uppercase !important;
+      cursor: pointer !important;
+    }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <a href="index.html" id="back">← Назад</a>
+  <span id="label">Завдання 01 · Примітиви</span>
+</div>
+
+<div id="bottom-ui">
+  <div id="info">DodecahedronGeometry · RingGeometry · TetrahedronGeometry</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
+
+let camera, scene, renderer;
+let group;
+let mesh1, mesh2, mesh3;
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+  // Освітлення
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+  scene.add(hemi);
+
+  const dirLight = new THREE.DirectionalLight(0xffd580, 2.5);
+  dirLight.position.set(3, 5, 3);
+  scene.add(dirLight);
+
+  const pointLight = new THREE.PointLight(0x4488ff, 1.5, 5);
+  pointLight.position.set(-2, 2, -1);
+  scene.add(pointLight);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  // AR Button
+  const arBtn = ARButton.createButton(renderer, { requiredFeatures: [] });
+  arBtn.id = 'ARButton';
+  document.getElementById('bottom-ui').prepend(arBtn);
+
+  // Група об'єктів
+  group = new THREE.Group();
+  group.position.set(0, 0, -0.8); // 80 см перед користувачем
+  scene.add(group);
+
+  // --- Об'єкт 1: DodecahedronGeometry (золотий, MeshStandardMaterial) ---
+  const geo1 = new THREE.DodecahedronGeometry(0.1);
+  const mat1 = new THREE.MeshStandardMaterial({
+    color: 0xd4a843,
+    metalness: 0.8,
+    roughness: 0.2,
+  });
+  mesh1 = new THREE.Mesh(geo1, mat1);
+  mesh1.position.set(-0.25, 0, 0);
+  mesh1.castShadow = true;
+  group.add(mesh1);
+
+  // --- Об'єкт 2: RingGeometry (срібний, MeshPhongMaterial) ---
+  const geo2 = new THREE.RingGeometry(0.05, 0.1, 32);
+  const mat2 = new THREE.MeshPhongMaterial({
+    color: 0xc0c8d8,
+    shininess: 200,
+    side: THREE.DoubleSide,
+    specular: 0xffffff,
+  });
+  mesh2 = new THREE.Mesh(geo2, mat2);
+  mesh2.position.set(0, 0, 0);
+  // Повертаємо кільце щоб воно виглядало як обруч
+  mesh2.rotation.x = Math.PI / 4;
+  group.add(mesh2);
+
+  // --- Об'єкт 3: TetrahedronGeometry (синьо-фіолетовий, MeshToonMaterial) ---
+  const geo3 = new THREE.TetrahedronGeometry(0.1);
+  const mat3 = new THREE.MeshStandardMaterial({
+    color: 0x6644cc,
+    metalness: 0.1,
+    roughness: 0.4,
+    emissive: 0x220044,
+    emissiveIntensity: 0.3,
+  });
+  mesh3 = new THREE.Mesh(geo3, mat3);
+  mesh3.position.set(0.25, 0, 0);
+  group.add(mesh3);
+
+  window.addEventListener('resize', onResize);
+}
+
+function animate() {
+  renderer.setAnimationLoop((time) => {
+    const t = time * 0.001;
+
+    // Анімація кожного об'єкта незалежно
+    if (mesh1) {
+      mesh1.rotation.x = t * 0.7;
+      mesh1.rotation.y = t * 1.1;
+      // Плавне підняття/опускання
+      mesh1.position.y = Math.sin(t * 1.2) * 0.03;
+    }
+
+    if (mesh2) {
+      mesh2.rotation.z = t * 0.5;
+      mesh2.rotation.y = t * 0.8;
+    }
+
+    if (mesh3) {
+      mesh3.rotation.x = -t * 0.9;
+      mesh3.rotation.z = t * 0.6;
+      mesh3.position.y = Math.cos(t * 1.5) * 0.03;
+    }
+
+    // Повільне обертання всієї групи
+    if (group) {
+      group.rotation.y = Math.sin(t * 0.3) * 0.2;
+    }
+
+    renderer.render(scene, camera);
+  });
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+</script>
+</body>
+</html>

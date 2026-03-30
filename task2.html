@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Завдання 2 — GLTF Ювелірний виріб</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; color: #fff; font-family: monospace; overflow: hidden; }
+    canvas { display: block; }
+
+    #ui {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 1.2rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    }
+    #back {
+      color: #d4a843; text-decoration: none; font-size: 0.75rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      border: 1px solid #d4a843; padding: 0.35rem 0.7rem;
+    }
+    #label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+
+    #bottom-ui {
+      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    }
+
+    #status {
+      font-size: 0.7rem; color: #d4a843; letter-spacing: 0.08em;
+      text-align: center; text-transform: uppercase;
+    }
+
+    #model-url-notice {
+      position: fixed; bottom: 7rem; left: 50%; transform: translateX(-50%);
+      z-index: 10; background: rgba(212,168,67,0.1); border: 1px solid rgba(212,168,67,0.3);
+      padding: 0.6rem 1rem; font-size: 0.65rem; color: #d4a843;
+      max-width: 320px; text-align: center; line-height: 1.5;
+    }
+
+    #ARButton {
+      background: #d4a843 !important; color: #000 !important; border: none !important;
+      padding: 0.7rem 2rem !important; font-family: monospace !important;
+      font-size: 0.75rem !important; letter-spacing: 0.15em !important;
+      text-transform: uppercase !important; cursor: pointer !important;
+    }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <a href="index.html" id="back">← Назад</a>
+  <span id="label">Завдання 02 · GLTF Модель</span>
+</div>
+
+<!-- ⚠️ ПІДКАЗКА ДЛЯ СТУДЕНТА: змінити URL нижче -->
+<div id="model-url-notice">
+  ⚠️ Встав URL своєї GLTF моделі з GitHub у змінну <code>MODEL_URL</code> у скрипті
+</div>
+
+<div id="bottom-ui">
+  <div id="status">Завантаження моделі...</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ============================================================
+// ⚠️ ПОТРІБНО ЗМІНИТИ: вставте посилання на вашу GLTF модель
+// Приклад: 'https://raw.githubusercontent.com/YOUR/REPO/main/models/jewelry.glb'
+// Файл має бути публічним!
+// ============================================================
+const MODEL_URL = 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/models/jewelry.glb';
+
+let camera, scene, renderer;
+let model = null;
+let mixer = null;
+let clock;
+
+init();
+animate();
+
+function init() {
+  clock = new THREE.Clock();
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+  // Освітлення — важливо для гарного відображення ювелірки
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x222233, 2);
+  scene.add(hemi);
+
+  const dirLight = new THREE.DirectionalLight(0xfff4e0, 3);
+  dirLight.position.set(2, 4, 2);
+  scene.add(dirLight);
+
+  const dirLight2 = new THREE.DirectionalLight(0xaabbff, 1);
+  dirLight2.position.set(-2, 1, -2);
+  scene.add(dirLight2);
+
+  const pointLight = new THREE.PointLight(0xffd700, 2, 3);
+  pointLight.position.set(0, 2, 0);
+  scene.add(pointLight);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.5;
+  document.body.appendChild(renderer.domElement);
+
+  // AR Button
+  const arBtn = ARButton.createButton(renderer, { requiredFeatures: [] });
+  arBtn.id = 'ARButton';
+  document.getElementById('bottom-ui').prepend(arBtn);
+
+  // Завантаження GLTF моделі
+  loadModel();
+
+  window.addEventListener('resize', onResize);
+}
+
+function loadModel() {
+  const loader = new GLTFLoader();
+  const statusEl = document.getElementById('status');
+
+  loader.load(
+    MODEL_URL,
+    (gltf) => {
+      model = gltf.scene;
+
+      // Розміщення перед користувачем
+      model.position.set(0, 0, -0.6);
+
+      // Масштабування — підбери під свою модель
+      // ⚠️ МОЖЛИВО ПОТРІБНО ЗМІНИТИ масштаб залежно від розміру моделі
+      const box = new THREE.Box3().setFromObject(model);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const targetSize = 0.2; // 20 см у AR
+      const scaleFactor = targetSize / maxDim;
+      model.scale.setScalar(scaleFactor);
+
+      // Центруємо модель по вертикалі
+      box.setFromObject(model);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center);
+      model.position.z = -0.6;
+
+      // Матеріали — покращуємо для гарного відображення ювелірки
+      model.traverse((child) => {
+        if (child.isMesh) {
+          if (child.material) {
+            child.material.metalness = 0.9;
+            child.material.roughness = 0.1;
+            child.material.needsUpdate = true;
+          }
+        }
+      });
+
+      scene.add(model);
+
+      // Якщо є вбудовані анімації
+      if (gltf.animations && gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(model);
+        const action = mixer.clipAction(gltf.animations[0]);
+        action.play();
+      }
+
+      statusEl.textContent = 'Модель завантажено ✓';
+      setTimeout(() => statusEl.style.opacity = '0', 3000);
+
+      // Прибираємо підказку
+      const notice = document.getElementById('model-url-notice');
+      if (notice) notice.remove();
+    },
+    (progress) => {
+      const pct = Math.round((progress.loaded / progress.total) * 100);
+      statusEl.textContent = `Завантаження... ${pct}%`;
+    },
+    (error) => {
+      console.error('Помилка завантаження GLTF:', error);
+      statusEl.textContent = '❌ Помилка завантаження. Перевір URL у скрипті.';
+      statusEl.style.color = '#ff4444';
+    }
+  );
+}
+
+function animate() {
+  renderer.setAnimationLoop((time) => {
+    const delta = clock.getDelta();
+
+    // Вбудована анімація моделі (якщо є)
+    if (mixer) mixer.update(delta);
+
+    // Власна анімація обертання
+    if (model) {
+      model.rotation.y += 0.005;
+    }
+
+    renderer.render(scene, camera);
+  });
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+</script>
+</body>
+</html>

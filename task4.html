@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Завдання 4 — Hit Test + Динозавр</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; color: #fff; font-family: monospace; overflow: hidden; }
+    canvas { display: block; }
+
+    #ui {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 1.2rem;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    }
+    #back {
+      color: #d4a843; text-decoration: none; font-size: 0.75rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      border: 1px solid #d4a843; padding: 0.35rem 0.7rem;
+    }
+    #label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+
+    #model-url-notice {
+      position: fixed; top: 4.5rem; left: 50%; transform: translateX(-50%);
+      z-index: 10; background: rgba(212,168,67,0.1); border: 1px solid rgba(212,168,67,0.3);
+      padding: 0.6rem 1rem; font-size: 0.62rem; color: #d4a843;
+      max-width: 320px; text-align: center; line-height: 1.5;
+    }
+
+    #hint {
+      position: fixed; bottom: 8rem; left: 50%; transform: translateX(-50%);
+      z-index: 10; font-size: 0.7rem; color: rgba(255,255,255,0.6);
+      text-align: center; letter-spacing: 0.06em;
+      background: rgba(0,0,0,0.5); padding: 0.5rem 1rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    #bottom-ui {
+      position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 0.8rem;
+    }
+
+    #status { font-size: 0.7rem; color: #d4a843; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    #ARButton {
+      background: #d4a843 !important; color: #000 !important; border: none !important;
+      padding: 0.7rem 2rem !important; font-family: monospace !important;
+      font-size: 0.75rem !important; letter-spacing: 0.15em !important;
+      text-transform: uppercase !important; cursor: pointer !important;
+    }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <a href="index.html" id="back">← Назад</a>
+  <span id="label">Завдання 04 · Динозавр</span>
+</div>
+
+<!-- ⚠️ ПІДКАЗКА ДЛЯ СТУДЕНТА -->
+<div id="model-url-notice">
+  ⚠️ Встав URL моделі динозавра з GitHub у змінну <code>MODEL_URL</code> у скрипті
+</div>
+
+<div id="hint">Наведи камеру на підлогу → торкнись щоб розмістити динозавра</div>
+
+<div id="bottom-ui">
+  <div id="status">Завантаження моделі...</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ============================================================
+// ⚠️ ПОТРІБНО ЗМІНИТИ: вставте посилання на вашу GLTF модель динозавра
+// Приклад: 'https://raw.githubusercontent.com/YOUR/REPO/main/models/dinosaur.glb'
+// ============================================================
+const MODEL_URL = 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/models/dinosaur.glb';
+
+let camera, scene, renderer;
+let reticle;
+let hitTestSource = null;
+let hitTestSourceRequested = false;
+let controller;
+let modelTemplate = null; // завантажена модель (шаблон для клонування)
+let mixer = null;
+let clock;
+let modelLoaded = false;
+
+init();
+animate();
+
+function init() {
+  clock = new THREE.Clock();
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
+  // Освітлення
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x224422, 2);
+  scene.add(hemi);
+
+  const dirLight = new THREE.DirectionalLight(0xfff8e0, 3);
+  dirLight.position.set(3, 5, 2);
+  scene.add(dirLight);
+
+  const dirLight2 = new THREE.DirectionalLight(0x88aaff, 0.8);
+  dirLight2.position.set(-3, 2, -3);
+  scene.add(dirLight2);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  renderer.shadowMap.enabled = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  document.body.appendChild(renderer.domElement);
+
+  // AR Button
+  const arBtn = ARButton.createButton(renderer, {
+    requiredFeatures: ['hit-test'],
+    optionalFeatures: ['dom-overlay'],
+    domOverlay: { root: document.body }
+  });
+  arBtn.id = 'ARButton';
+  document.getElementById('bottom-ui').prepend(arBtn);
+
+  // Reticle
+  const reticleGeo = new THREE.RingGeometry(0.06, 0.085, 32);
+  reticleGeo.rotateX(-Math.PI / 2);
+  const reticleMat = new THREE.MeshBasicMaterial({
+    color: 0x44ff88,
+    side: THREE.DoubleSide,
+  });
+  reticle = new THREE.Mesh(reticleGeo, reticleMat);
+  reticle.matrixAutoUpdate = false;
+  reticle.visible = false;
+  scene.add(reticle);
+
+  // Контролер
+  controller = renderer.xr.getController(0);
+  controller.addEventListener('select', onSelect);
+  scene.add(controller);
+
+  // Завантажуємо модель наперед
+  loadModel();
+
+  window.addEventListener('resize', onResize);
+}
+
+function loadModel() {
+  const loader = new GLTFLoader();
+  const statusEl = document.getElementById('status');
+
+  loader.load(
+    MODEL_URL,
+    (gltf) => {
+      modelTemplate = gltf;
+
+      // Підбираємо масштаб
+      const box = new THREE.Box3().setFromObject(gltf.scene);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      // ⚠️ targetSize = бажаний розмір у метрах. Динозавр ~25см
+      const targetSize = 0.25;
+      const scaleFactor = targetSize / maxDim;
+      gltf.scene.userData.defaultScale = scaleFactor;
+
+      modelLoaded = true;
+      statusEl.textContent = 'Модель готова ✓ — шукай поверхню';
+      setTimeout(() => statusEl.style.opacity = '0', 3000);
+
+      const notice = document.getElementById('model-url-notice');
+      if (notice) notice.remove();
+    },
+    (progress) => {
+      if (progress.total > 0) {
+        const pct = Math.round((progress.loaded / progress.total) * 100);
+        statusEl.textContent = `Завантаження... ${pct}%`;
+      }
+    },
+    (error) => {
+      console.error('Помилка GLTF:', error);
+      statusEl.textContent = '❌ Помилка завантаження. Перевір MODEL_URL.';
+      statusEl.style.color = '#ff4444';
+    }
+  );
+}
+
+function onSelect() {
+  if (!reticle.visible || !modelLoaded) return;
+
+  // Клонуємо сцену моделі
+  const clone = modelTemplate.scene.clone(true);
+  const scale = modelTemplate.scene.userData.defaultScale || 0.1;
+  clone.scale.setScalar(scale);
+
+  // Ставимо на позицію reticle
+  clone.position.setFromMatrixPosition(reticle.matrix);
+  clone.quaternion.setFromRotationMatrix(reticle.matrix);
+
+  // Покращуємо матеріали
+  clone.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material.roughness = Math.min(child.material.roughness ?? 0.5, 0.7);
+      child.material.metalness = child.material.metalness ?? 0.1;
+      child.material.needsUpdate = true;
+    }
+  });
+
+  scene.add(clone);
+
+  // Анімація якщо є
+  if (modelTemplate.animations && modelTemplate.animations.length > 0) {
+    const m = new THREE.AnimationMixer(clone);
+    const action = m.clipAction(modelTemplate.animations[0]);
+    action.play();
+    clone.userData.mixer = m;
+  }
+
+  clone.userData.placed = true;
+}
+
+function animate() {
+  renderer.setAnimationLoop((time, frame) => {
+    const delta = clock.getDelta();
+
+    if (frame) {
+      const referenceSpace = renderer.xr.getReferenceSpace();
+      const session = renderer.xr.getSession();
+
+      if (!hitTestSourceRequested) {
+        session.requestReferenceSpace('viewer').then((viewerSpace) => {
+          session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+            hitTestSource = source;
+          });
+        });
+
+        session.addEventListener('end', () => {
+          hitTestSourceRequested = false;
+          hitTestSource = null;
+        });
+
+        hitTestSourceRequested = true;
+      }
+
+      if (hitTestSource) {
+        const hitTestResults = frame.getHitTestResults(hitTestSource);
+        if (hitTestResults.length > 0) {
+          const hit = hitTestResults[0];
+          const pose = hit.getPose(referenceSpace);
+          reticle.visible = true;
+          reticle.matrix.fromArray(pose.transform.matrix);
+        } else {
+          reticle.visible = false;
+        }
+      }
+    }
+
+    // Оновлення анімацій розміщених моделей
+    scene.children.forEach((obj) => {
+      if (obj.userData.placed && obj.userData.mixer) {
+        obj.userData.mixer.update(delta);
+      }
+    });
+
+    renderer.render(scene, camera);
+  });
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+</script>
+</body>
+</html>
